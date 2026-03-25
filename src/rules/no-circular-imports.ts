@@ -1,11 +1,15 @@
 import type { Rule } from 'eslint'
 import path from 'node:path'
 import fs from 'node:fs'
+import ts from 'typescript'
 import { DEFAULT_EXTENSIONS } from '../utils'
 
 /**
  * Detect circular imports by recursively following import chains.
- * Works through barrel exports (index.ts), unlike import-x/no-cycle.
+ * Works through barrel exports (index.ts).
+ *
+ * Uses TypeScript Compiler API for accurate AST parsing.
+ * Type-only imports (`import type`) are always ignored.
  *
  * Options:
  * - aliases: Record of path alias to directory mapping (default: {})
@@ -105,20 +109,51 @@ function resolveFilePath(filePath: string, extensions: string[]): string | null 
   return null
 }
 
+/**
+ * Extract non-type-only import/export paths from a file using TypeScript AST.
+ */
 function extractImports(filePath: string): string[] {
   try {
     const content = fs.readFileSync(filePath, 'utf-8')
+    const sourceFile = ts.createSourceFile(filePath, content, ts.ScriptTarget.Latest, false)
     const imports: string[] = []
 
-    // import ... from '...' / export ... from '...' / export * from '...'
-    const regex = /(?:import|export)\s+(?:[\s\S]*?\s+from\s+|(?:\*\s+from\s+))['"]([^'"]+)['"]/g
-
-    let match
-    while ((match = regex.exec(content)) !== null) {
-      if (!imports.includes(match[1])) {
-        imports.push(match[1])
+    ts.forEachChild(sourceFile, function visit(node) {
+      // import ... from '...'
+      if (ts.isImportDeclaration(node)) {
+        if (node.importClause?.isTypeOnly) return // import type { ... } from '...'
+        const specifier = node.moduleSpecifier
+        if (ts.isStringLiteral(specifier)) {
+          // Check if all named imports are type-only: import { type A, type B } from '...'
+          const namedBindings = node.importClause?.namedBindings
+          if (namedBindings && ts.isNamedImports(namedBindings)) {
+            const allTypeOnly = namedBindings.elements.every((el) => el.isTypeOnly)
+            if (allTypeOnly) return
+          }
+          if (!imports.includes(specifier.text)) {
+            imports.push(specifier.text)
+          }
+        }
+        return
       }
-    }
+
+      // export ... from '...' / export * from '...'
+      if (ts.isExportDeclaration(node)) {
+        if (node.isTypeOnly) return // export type { ... } from '...'
+        const specifier = node.moduleSpecifier
+        if (specifier && ts.isStringLiteral(specifier)) {
+          // Check if all named exports are type-only: export { type A } from '...'
+          if (node.exportClause && ts.isNamedExports(node.exportClause)) {
+            const allTypeOnly = node.exportClause.elements.every((el) => el.isTypeOnly)
+            if (allTypeOnly) return
+          }
+          if (!imports.includes(specifier.text)) {
+            imports.push(specifier.text)
+          }
+        }
+        return
+      }
+    })
 
     return imports
   } catch {
