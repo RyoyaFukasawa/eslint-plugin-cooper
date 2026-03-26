@@ -8,6 +8,7 @@ import { DEFAULT_EXTENSIONS } from '../utils'
  *
  * Options:
  * - extensions: Array of file extensions for barrel files (default: ['.ts', '.tsx', '.js', '.jsx'])
+ * - barrelFileNames: Array of barrel file names without extension (default: ['index'])
  */
 export const sameLevelExports: Rule.RuleModule = {
   meta: {
@@ -20,6 +21,10 @@ export const sameLevelExports: Rule.RuleModule = {
         type: 'object',
         properties: {
           extensions: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+          barrelFileNames: {
             type: 'array',
             items: { type: 'string' },
           },
@@ -36,9 +41,11 @@ export const sameLevelExports: Rule.RuleModule = {
     const filename = context.filename.replace(/\\/g, '/')
     const options = context.options[0] || {}
     const extensions: string[] = options.extensions || DEFAULT_EXTENSIONS
+    const barrelFileNames: string[] = options.barrelFileNames || ['index']
 
-    // Check if this file is a barrel (index.*)
-    const isBarrel = extensions.some((ext) => filename.endsWith(`/index${ext}`))
+    const isBarrel = barrelFileNames.some((name) =>
+      extensions.some((ext) => filename.endsWith(`/${name}${ext}`))
+    )
     if (!isBarrel) return {}
 
     const indexDir = path.dirname(filename)

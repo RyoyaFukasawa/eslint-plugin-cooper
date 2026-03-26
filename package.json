@@ -1,6 +1,6 @@
 {
   "name": "eslint-plugin-cooper",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "ESLint plugin to enforce barrel export boundaries and detect circular imports",
   "type": "module",
   "main": "dist/index.js",
@@ -10,6 +10,7 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts",
+    "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
     "prepublishOnly": "pnpm build"
@@ -28,12 +29,17 @@
     "type": "git",
     "url": "https://github.com/ryoyafukasawa/eslint-plugin-cooper"
   },
+  "packageManager": "pnpm@10.26.0",
   "author": "ryoyafukasawa",
   "license": "MIT",
   "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@typescript-eslint/parser": "^8.57.2",
     "eslint": "^10.0.0",
+    "jiti": "^2.6.1",
     "tsup": "^8.4.0",
     "typescript": "^5.8.3",
+    "typescript-eslint": "^8.57.2",
     "vitest": "^4.0.18"
   },
   "peerDependencies": {

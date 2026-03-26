@@ -1,3 +1,4 @@
+import type { Linter, Rule } from 'eslint'
 import { meta } from './meta'
 import {
   noDeepImports,
@@ -5,24 +6,25 @@ import {
   enforceExportPattern,
   noCircularImports,
 } from './rules'
-import { recommended } from './configs/recommended'
+import { createZone, type ZoneConfig } from './configs/zone'
 
-const rules = {
+const rules: Record<string, Rule.RuleModule> = {
   'no-deep-imports': noDeepImports,
   'same-level-exports': sameLevelExports,
   'enforce-export-pattern': enforceExportPattern,
   'no-circular-imports': noCircularImports,
 }
 
-const plugin = {
-  meta,
-  rules,
-  configs: {} as Record<string, unknown>,
+interface CooperPlugin {
+  meta: typeof meta
+  rules: Record<string, Rule.RuleModule>
+  zone: (config: ZoneConfig) => Linter.Config[]
 }
 
-// Self-referencing: configs need the plugin instance
-plugin.configs = {
-  recommended: recommended(plugin),
+const plugin: CooperPlugin = {
+  meta,
+  rules,
+  zone: (config: ZoneConfig) => createZone(config, plugin),
 }
 
 export default plugin

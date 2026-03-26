@@ -1,0 +1,1 @@
+export { entityA } from './entity'

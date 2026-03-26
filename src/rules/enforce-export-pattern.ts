@@ -10,6 +10,7 @@ import { DEFAULT_EXTENSIONS } from '../utils'
  *
  * Options:
  * - extensions: Array of file extensions to check (default: ['.ts', '.tsx', '.js', '.jsx'])
+ * - barrelFileNames: Array of barrel file names without extension (default: ['index'])
  */
 export const enforceExportPattern: Rule.RuleModule = {
   meta: {
@@ -25,23 +26,31 @@ export const enforceExportPattern: Rule.RuleModule = {
             type: 'array',
             items: { type: 'string' },
           },
+          barrelFileNames: {
+            type: 'array',
+            items: { type: 'string' },
+          },
         },
         additionalProperties: false,
       },
     ],
     messages: {
       useExportStar:
-        'Use "export * from \'{{source}}\'". The directory\'s index.ts already filters exports.',
+        'Use "export * from \'{{source}}\'". The directory\'s barrel file already filters exports.',
       useNamedExports:
         'Use "export { ... } from \'{{source}}\'". Files should use named exports.',
     },
   },
   create(context) {
     const filename = context.filename.replace(/\\/g, '/')
-    if (!filename.endsWith('/index.ts')) return {}
-
     const options = context.options[0] || {}
     const extensions: string[] = options.extensions || DEFAULT_EXTENSIONS
+    const barrelFileNames: string[] = options.barrelFileNames || ['index']
+
+    const isBarrel = barrelFileNames.some((name) =>
+      extensions.some((ext) => filename.endsWith(`/${name}${ext}`))
+    )
+    if (!isBarrel) return {}
     const indexDir = path.dirname(filename)
 
     function isDirectory(exportPath: string) {
